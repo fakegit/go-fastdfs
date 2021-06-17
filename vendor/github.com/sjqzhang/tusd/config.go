@@ -1,4 +1,4 @@
-package handler
+package tusd
 
 import (
 	"errors"
@@ -9,10 +9,13 @@ import (
 
 // Config provides a way to configure the Handler depending on your needs.
 type Config struct {
+	// DataStore implementation used to store and retrieve the single uploads.
+	// The usage of this field is deprecated and should be avoided in favor of
+	// StoreComposer.
+	DataStore DataStore
 	// StoreComposer points to the store composer from which the core data store
 	// and optional dependencies should be taken. May only be nil if DataStore is
 	// set.
-	// TODO: Remove pointer?
 	StoreComposer *StoreComposer
 	// MaxSize defines how many bytes may be stored in one single upload. If its
 	// value is is 0 or smaller no limit will be enforced.
@@ -40,20 +43,11 @@ type Config struct {
 	// potentially set by proxies when generating an absolute URL in the
 	// response to POST requests.
 	RespectForwardedHeaders bool
-	// PreUploadCreateCallback will be invoked before a new upload is created, if the
-	// property is supplied. If the callback returns nil, the upload will be created.
-	// Otherwise the HTTP request will be aborted. This can be used to implement
-	// validation of upload metadata etc.
-	PreUploadCreateCallback func(hook HookEvent) error
-	// PreFinishResponseCallback will be invoked after an upload is completed but before
-	// a response is returned to the client. Error responses from the callback will be passed
-	// back to the client. This can be used to implement post-processing validation.
-	PreFinishResponseCallback func(hook HookEvent) error
 }
 
 func (config *Config) validate() error {
 	if config.Logger == nil {
-		config.Logger = log.New(os.Stdout, "[tusd] ", log.Ldate|log.Ltime)
+		config.Logger = log.New(os.Stdout, "[tusd] ", 0)
 	}
 
 	base := config.BasePath
@@ -75,7 +69,10 @@ func (config *Config) validate() error {
 	config.isAbs = uri.IsAbs()
 
 	if config.StoreComposer == nil {
-		return errors.New("tusd: StoreComposer must no be nil")
+		config.StoreComposer = newStoreComposerFromDataStore(config.DataStore)
+		config.DataStore = nil
+	} else if config.DataStore != nil {
+		return errors.New("tusd: either StoreComposer or DataStore may be set in Config, but not both")
 	}
 
 	if config.StoreComposer.Core == nil {

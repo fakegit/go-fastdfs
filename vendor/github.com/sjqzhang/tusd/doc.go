@@ -1,5 +1,5 @@
 /*
-Package handler provides ways to accept tus 1.0 calls using HTTP.
+Package tusd provides ways to accept tus 1.0 calls using HTTP.
 
 tus is a protocol based on HTTP for resumable file uploads. Resumable means that
 an upload can be interrupted at any moment and can be resumed without
@@ -66,4 +66,4 @@ This handler can then be mounted to a specific path, e.g. /files:
 
   http.Handle("/files/", http.StripPrefix("/files/", handler))
 */
-package handler
+package tusd
